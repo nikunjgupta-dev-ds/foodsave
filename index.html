@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FoodSave – Rescue surplus food</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:#f1f5f9;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:#0f172a}
+button{cursor:pointer;transition:all .15s}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.up{animation:up .25s ease}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo } = React;
+const G="#059669", A="#D97706";
+const P={
+ pin:"M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0zM12 7a3 3 0 100 6 3 3 0 000-6z",
+ search:"M11 3a8 8 0 100 16 8 8 0 000-16zM21 21l-4.3-4.3",
+ shield:"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4",
+ star:"M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z",
+ clock:"M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2",
+ x:"M18 6L6 18M6 6l12 12",
+ leaf:"M11 20A7 7 0 019.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.5 2 8 0 5.5-4.8 10-10 10zM2 21c0-3 1.9-5.4 5.7-7",
+ heart:"M19 14c1.5-1.5 3-3.2 3-5.500A5.500 5.500 0 0016.500 3c-1.800 0-3 .5-4.500 2-1.500-1.500-2.700-2-4.500-2A5.500 5.500 0 002 8.500c0 2.300 1.500 4 3 5.500l7 7z",
+ bag:"M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0",
+ truck:"M1 3h15v13H1zM16 8h4l3 3v5h-7zM5.500 16a2.500 2.500 0 100 5 2.500 2.500 0 000-5zM18.500 16a2.500 2.500 0 100 5 2.500 2.500 0 000-5z",
+ check:"M20 6L9 17l-5-5",
+ store:"M3 9l1-5h16l1 5M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0M5 12v8h14v-8",
+ zap:"M13 2L3 14h9l-1 8 10-12h-9z",
+ user:"M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z",
+};
+const I=({n,s=16,c="",f=false})=>(<svg width={s} height={s} viewBox="0 0 24 24" fill={f?"currentColor":"none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={c} aria-hidden="true"><path d={P[n]}/></svg>);
+
+const seed=[
+ {id:1,store:"Theobroma Bakery",title:"Evening Veg Bakery Box",cat:"Bakery",tags:["Pure Veg","Eggless"],orig:350,price:99,qty:3,win:"9:30 PM – 10:30 PM",dist:1.2,rating:4.6,emoji:"🧁"},
+ {id:2,store:"Bikanervala",title:"Assorted Mithai & Snacks Box",cat:"Mithai",tags:["Pure Veg"],orig:450,price:149,qty:5,win:"9:00 PM – 10:00 PM",dist:0.8,rating:4.5,emoji:"🍬"},
+ {id:3,store:"Chaayos",title:"Chai & Sandwich Combo",cat:"Meals",tags:["Pure Veg"],orig:300,price:99,qty:4,win:"10:00 PM – 11:00 PM",dist:1.9,rating:4.4,emoji:"☕"},
+ {id:4,store:"Haldiram’s",title:"Jain Namkeen & Meal Box",cat:"Meals",tags:["Pure Veg","Jain"],orig:400,price:129,qty:2,win:"9:30 PM – 10:30 PM",dist:2.4,rating:4.7,emoji:"🍱"},
+ {id:5,store:"Local Artisan Sourdough",title:"Sourdough & Pastry Bag",cat:"Bakery",tags:["Pure Veg","Eggless"],orig:500,price:179,qty:3,win:"8:30 PM – 9:30 PM",dist:2.8,rating:4.8,emoji:"🥖"},
+ {id:6,store:"Sagar Ratna",title:"South Indian Dinner Box",cat:"Meals",tags:["Pure Veg","Jain"],orig:380,price:119,qty:6,win:"10:00 PM – 11:00 PM",dist:1.5,rating:4.3,emoji:"🥘"},
+];
+const FILTERS=["All","Pure Veg","Jain","Eggless","Bakery","Meals"];
+const rnd=()=>String(Math.floor(1000+Math.random()*9000));
+const RULES=["Auto-Donate to NGO (Free)","Flash Price Drop (Extra 25% Off)","Close Listing (Keep Private)"];
+const rule=b=>b.fallback||RULES[0];
+const RULE_STYLE={[RULES[0]]:"bg-emerald-50 text-emerald-700",[RULES[1]]:"bg-amber-50 text-amber-700",[RULES[2]]:"bg-slate-100 text-slate-700"};
+
+function FSSAI(){return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-full"><I n="shield" s={11}/>FSSAI</span>}
+
+function QR({seedStr}){
+  const cells=useMemo(()=>{let h=0;for(const ch of seedStr)h=(h*31+ch.charCodeAt(0))>>>0;return Array.from({length:121},(_,i)=>{h=(h*1103515245+12345)>>>0;const r=Math.floor(i/11),c=i%11;const f=(r<3&&c<3)||(r<3&&c>7)||(r>7&&c<3);return f||(h>>>16)%2===0});},[seedStr]);
+  return <div className="grid grid-cols-11 gap-px w-32 h-32 p-2 bg-white border border-slate-200 rounded-lg mx-auto">{cells.map((on,i)=><div key={i} className={on?"bg-slate-900":"bg-white"}/>)}</div>
+}
+
+function App(){
+  const [role,setRole]=useState("consumer");
+  const [bags,setBags]=useState([]);
+  const [orders,setOrders]=useState([]);
+  const [batches,setBatches]=useState([]);
+  const [db,setDb]=useState(null);
+  const [uid,setUid]=useState(null);
+  const [state,setState]=useState("loading");
+  const [ro,setRo]=useState(false);
+  const fail=()=>toast("Couldn’t save to the server. You may have view-only access.","warn");
+  React.useEffect(()=>{
+    let un=[],dead=false;
+    const t=setTimeout(()=>setState(s=>s==="loading"?"offline":s),10000);
+    (async()=>{
+      try{
+        const d=window.claude?await claude.use("db"):null;
+        const u=window.claude?await claude.use("user"):null;
+        if(dead)return;
+        if(!d){setState("offline");return}
+        setDb(d);
+        if(u){setUid((await u.id())||"guest");if((await u.can("data.write"))===false)setRo(true)}
+        const sub=(name,set)=>d.collection(name).onSnapshot(s=>{set(s.docs.map(x=>({id:x.id,...x.data()})).sort((a,b)=>(b.created||0)-(a.created||0)));clearTimeout(t);setState("live")},()=>setState("offline"));
+        un=[sub("bags",setBags),sub("orders",setOrders),sub("batches",setBatches)];
+      }catch(e){setState("offline")}
+    })();
+    return()=>{dead=true;clearTimeout(t);un.forEach(f=>f&&f())};
+  },[]);
+  const [toasts,setToasts]=useState([]);
+  const [filter,setFilter]=useState("All");
+  const [q,setQ]=useState("");
+  const [sel,setSel]=useState(null);
+  const [drawer,setDrawer]=useState(false);
+  const [paying,setPaying]=useState(false);
+
+  const toast=(m,t="ok")=>{const id=Math.random();setToasts(a=>[...a,{id,m,t}]);setTimeout(()=>setToasts(a=>a.filter(x=>x.id!==id)),3200)};
+
+  const shown=bags.filter(b=>(filter==="All"||b.tags.includes(filter)||b.cat===filter)&&(b.store+b.title).toLowerCase().includes(q.toLowerCase()));
+
+  const pay=async()=>{
+    if(!db)return fail();
+    setPaying(true);const b=sel;
+    try{
+      const ref=db.doc("bags/"+b.id);
+      const l=await ref.acquire({holder:uid||String(Math.random()),ttlMs:5000});
+      if(!l.acquired){toast("Someone else is booking this bag. Try again in a moment.","warn");return}
+      const cur=(await ref.get()).data();
+      if(!cur||cur.qty<1){toast("Sorry, this bag just sold out","warn");setSel(null);return}
+      await ref.update({qty:cur.qty-1});
+      let pin=rnd();while(orders.some(o=>o.pin===pin&&o.status==="Reserved"))pin=rnd();
+      await db.collection("orders").add({uid:uid||"guest",bagId:b.id,store:b.store,title:b.title,price:b.price,pin,status:"Reserved",win:b.win,created:Date.now()});
+      setSel(null);setDrawer(true);toast(`Bag Reserved! PIN: ${pin}`);
+    }catch(e){fail()}finally{setPaying(false)}
+  };
+
+  const fallback=async()=>{
+    if(!db)return fail();
+    const open=bags.filter(b=>b.qty>0);
+    if(!open.length){toast("No unreserved bags to process","warn");return}
+    const donate=open.filter(b=>rule(b)===RULES[0]);
+    const flash=open.filter(b=>rule(b)===RULES[1]&&!b.flashed);
+    const close=open.filter(b=>rule(b)===RULES[2]);
+    try{
+      for(const b of donate){const kg=+(b.qty*1.5).toFixed(1);await db.collection("batches").add({store:b.store,title:b.title,bags:b.qty,kg,feeds:Math.round(kg*2.7),dist:b.dist,status:"Available",ngo:null,created:Date.now()});await db.doc("bags/"+b.id).update({qty:0})}
+      for(const b of flash){await db.doc("bags/"+b.id).update({price:Math.round(b.price*0.75),flashed:true})}
+      for(const b of close){await db.doc("bags/"+b.id).update({qty:0,expired:true})}
+      toast(`Auto-transfer done: ${donate.length} to NGO • ${flash.length} flash-discounted • ${close.length} closed`,"warn");
+    }catch(e){fail()}
+  };
+
+  const claim=async(id)=>{
+    if(!db)return fail();
+    try{await db.doc("batches/"+id).update({status:"Volunteer En Route",ngo:"Robin Hood Army Noida"})}catch(e){return fail()}
+    toast("Batch Claimed by Robin Hood Army Noida");
+  };
+
+  const roles=[["consumer","Consumer","user"],["vendor","Vendor","store"],["ngo","NGO","heart"],["db","Data","shield"]];
+  const mine=orders.filter(o=>o.uid===uid||o.uid==="demo");
+  const active=mine.filter(o=>o.status==="Reserved").length;
+
+  return (<div className="min-h-screen">
+    <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200" style={{paddingTop:"env(safe-area-inset-top,0px)"}}>
+      <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+        <div className="flex items-center gap-2 font-extrabold text-lg" style={{color:G}}><span className="w-8 h-8 rounded-lg grid place-items-center text-white" style={{background:G}}><I n="leaf" s={18}/></span><span className="hidden sm:inline">FoodSave</span><span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${state==="live"?"bg-emerald-50 text-emerald-700":"bg-amber-50 text-amber-700"}`}>● {state==="live"?"LIVE":state==="loading"?"…":"OFFLINE"}</span></div>
+        <nav className="flex-1 flex justify-center">
+          <div className="inline-flex bg-slate-100 rounded-full p-1" role="tablist">
+            {roles.map(([k,l,ic])=>(<button key={k} role="tab" aria-selected={role===k} onClick={()=>setRole(k)} className={`flex items-center gap-1.5 px-3 sm:px-4 py-1.5 rounded-full text-sm font-semibold ${role===k?"bg-white shadow text-emerald-700":"text-slate-600 hover:text-slate-900"}`}><I n={ic} s={14}/><span className={role===k?"":"hidden sm:inline"}>{l}</span></button>))}
+          </div>
+        </nav>
+        <button onClick={()=>setDrawer(true)} className="relative p-2 rounded-full hover:bg-slate-100" aria-label="My orders"><I n="bag" s={22}/>{active>0&&<span className="absolute -top-0.5 -right-0.5 text-[10px] font-bold text-white rounded-full w-4 h-4 grid place-items-center" style={{background:A}}>{active}</span>}</button>
+      </div>
+    </header>
+
+    <main className="max-w-5xl mx-auto px-4 py-5 pb-24">
+      {state==="offline"&&<div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm p-3">Can’t reach the shared database. Open the published link while signed in to claude.ai.</div>}
+      {ro&&<div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm p-3">You have view-only access. Ask the owner for Contributor access to reserve bags or list food.</div>}
+      {state==="live"&&bags.length===0&&<p className="text-center text-slate-500 text-sm mb-4">No listings in the database yet. Add one from the Vendor view.</p>}
+      {role==="consumer"&&<Consumer {...{shown,filter,setFilter,q,setQ,setSel}}/>}
+      {role==="vendor"&&<Vendor {...{bags,db,orders,batches,toast,fail}}/>}
+      {role==="db"&&<DbView {...{bags,orders,batches,state}}/>}
+      {role==="ngo"&&<NGO {...{batches,fallback,claim,bags}}/>}
+    </main>
+
+    {sel&&<div className="fixed inset-0 z-40 bg-slate-900/50 grid place-items-end sm:place-items-center" onClick={()=>!paying&&setSel(null)}>
+      <div role="dialog" aria-modal="true" className="up bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 max-h-[92vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-start">
+          <div><div className="text-xs text-slate-500">{sel.store}</div><h3 className="font-bold text-lg">{sel.title}</h3></div>
+          <button onClick={()=>setSel(null)} aria-label="Close" className="p-1 rounded hover:bg-slate-100"><I n="x" s={20}/></button>
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-sm"><span className="text-slate-400 line-through">₹{sel.orig}</span><span className="text-2xl font-extrabold" style={{color:G}}>₹{sel.price}</span><span className="ml-auto text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-1 rounded-full">{sel.qty} left</span></div>
+        <ul className="mt-3 text-sm text-slate-600 space-y-1.5 bg-slate-50 rounded-lg p-3">
+          <li className="flex gap-2"><I n="clock" s={15} c="mt-0.5 shrink-0"/>Pickup: {sel.win}</li>
+          <li className="flex gap-2"><I n="pin" s={15} c="mt-0.5 shrink-0"/>{sel.dist} km away • collect in person</li>
+          <li className="flex gap-2"><I n="bag" s={15} c="mt-0.5 shrink-0"/>Surprise contents; carry your own bag if possible</li>
+          <li className="flex gap-2"><I n="check" s={15} c="mt-0.5 shrink-0"/>Show your 4-digit PIN at the counter. No refunds after pickup window.</li>
+        </ul>
+        <div className="mt-4 text-center"><QR seedStr={sel.store+sel.qty}/><p className="text-xs text-slate-500 mt-2">Scan with any UPI app, or pay below</p></div>
+        <button onClick={pay} disabled={paying} className="mt-4 w-full py-3 rounded-xl text-white font-bold hover:brightness-110 disabled:opacity-70" style={{background:G}}>{paying?"Confirming payment…":`Pay ₹${sel.price} via UPI`}</button>
+      </div>
+    </div>}
+
+    {drawer&&<div className="fixed inset-0 z-40 bg-slate-900/50" onClick={()=>setDrawer(false)}>
+      <aside className="up absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white p-5 overflow-y-auto" style={{paddingTop:"max(1.25rem,env(safe-area-inset-top,0px))"}} onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4"><h2 className="font-bold text-lg">My Orders</h2><button onClick={()=>setDrawer(false)} aria-label="Close" className="p-1 rounded hover:bg-slate-100"><I n="x" s={20}/></button></div>
+        {mine.length===0&&<p className="text-slate-500 text-sm">No orders yet.</p>}
+        <div className="space-y-3">{mine.map(o=>(<div key={o.id} className="border border-slate-200 rounded-xl p-3">
+          <div className="flex justify-between text-sm"><b>{o.store}</b><span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${o.status==="Reserved"?"bg-amber-50 text-amber-700":"bg-emerald-50 text-emerald-700"}`}>{o.status}</span></div>
+          <div className="text-sm text-slate-600">{o.title} • ₹{o.price}</div>
+          <div className="text-xs text-slate-500 mt-1">Pickup {o.win}</div>
+          <div className="mt-2 flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2"><span className="text-xs text-slate-500">Pickup PIN</span><span className="font-mono text-xl font-bold tracking-[.3em]">{o.pin}</span></div>
+        </div>))}</div>
+      </aside>
+    </div>}
+
+    <div className="fixed bottom-4 left-0 right-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none" style={{paddingBottom:"env(safe-area-inset-bottom,0px)"}} aria-live="polite">
+      {toasts.map(t=>(<div key={t.id} className="up pointer-events-auto text-white text-sm font-medium px-4 py-2.5 rounded-xl shadow-lg" style={{background:t.t==="warn"?"#B45309":"#047857"}}>{t.m}</div>))}
+    </div>
+  </div>);
+}
+
+function Consumer({shown,filter,setFilter,q,setQ,setSel}){
+  return (<div className="up">
+    <div className="rounded-2xl p-4 sm:p-5 text-white" style={{background:"linear-gradient(135deg,#047857,#059669)"}}>
+      <button className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 rounded-full px-3 py-1.5 text-sm font-medium"><I n="pin" s={15}/>Sector 18, Noida • Within 3 km</button>
+      <h1 className="text-2xl font-extrabold mt-3">Rescue tonight’s surplus. Save up to 70%.</h1>
+      <div className="mt-3 relative"><I n="search" s={16} c="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search bakeries, mithai, meals…" aria-label="Search" className="w-full pl-9 pr-3 py-2.5 rounded-xl text-slate-900 text-sm outline-none focus:ring-2 focus:ring-amber-400"/></div>
+    </div>
+    <div className="flex gap-2 overflow-x-auto py-4" role="group" aria-label="Filters">
+      {FILTERS.map(f=>(<button key={f} onClick={()=>setFilter(f)} className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-semibold border ${filter===f?"text-white border-transparent":"bg-white text-slate-700 border-slate-200 hover:border-emerald-400"}`} style={filter===f?{background:G}:{}}>{f}</button>))}
+    </div>
+    {shown.length===0&&<p className="text-center text-slate-500 py-12">No bags match right now. Check back soon!</p>}
+    <div className="grid gap-4 sm:grid-cols-2">{shown.map(b=>(
+      <article key={b.id} className={`bg-white rounded-2xl border border-slate-200 p-4 hover:shadow-md ${b.qty===0?"opacity-60":""}`}>
+        <div className="flex gap-3">
+          <div className="w-14 h-14 rounded-xl bg-amber-50 grid place-items-center text-3xl shrink-0">{b.emoji}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap"><h3 className="font-bold truncate">{b.store}</h3><FSSAI/></div>
+            <div className="text-xs text-slate-500 flex items-center gap-3 mt-0.5"><span className="flex items-center gap-1"><I n="pin" s={12}/>{b.dist} km</span><span className="flex items-center gap-1 text-amber-600"><I n="star" s={12} f/>{b.rating}</span></div>
+          </div>
+          <span className={`self-start text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${b.qty===0?"bg-slate-100 text-slate-500":b.qty<=2?"bg-red-50 text-red-600":"bg-amber-50 text-amber-700"}`}>{b.qty===0?"Sold out":`${b.qty} left`}</span>
+        </div>
+        <div className="mt-3 font-semibold">{b.title}</div>
+        <div className="flex gap-1.5 mt-1.5 flex-wrap">{b.tags.map(t=><span key={t} className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{t}</span>)}</div>
+        <div className="mt-3 flex items-end justify-between">
+          <div><div className="text-xs text-slate-500 flex items-center gap-1"><I n="clock" s={12}/>{b.win}</div><div className="mt-1"><span className="text-slate-400 line-through text-sm mr-2">₹{b.orig}</span><span className="text-xl font-extrabold" style={{color:G}}>₹{b.price}</span></div></div>
+          <button disabled={b.qty===0} onClick={()=>setSel(b)} className="px-4 py-2 rounded-xl text-sm font-bold text-white hover:brightness-110 disabled:bg-slate-300 disabled:cursor-not-allowed" style={b.qty?{background:A}:{}}>Reserve Bag</button>
+        </div>
+      </article>))}
+    </div>
+  </div>);
+}
+
+function Vendor({bags,db,orders,batches,toast,fail}){
+  const blank={store:"Theobroma Bakery",cat:"Bakery",tag:"Pure Veg",orig:"",price:"",qty:"3",win:"9:30 PM – 10:30 PM",fallback:RULES[0]};
+  const [f,setF]=useState(blank);
+  const [pin,setPin]=useState("");
+  const stores=[...new Map(bags.map(b=>[b.store,b])).values()];
+  const set=k=>e=>setF({...f,[k]:e.target.value});
+  const picked=orders.filter(o=>o.status==="Picked Up");
+  const bagsSaved=orders.length+batches.reduce((s,b)=>s+b.bags,0);
+  const rev=orders.reduce((s,o)=>s+o.price,0);
+  const co2=(bagsSaved*2.5).toFixed(1);
+
+  const submit=async e=>{
+    e.preventDefault();
+    const orig=+f.orig,price=+f.price,qty=+f.qty;
+    const name=f.store==="__new__"?(f.newStore||"").trim():f.store;
+    if(!name||!orig||!price||!qty){toast("Please fill all fields","warn");return}
+    if(price>=orig){toast("Discounted price must be lower than original","warn");return}
+    const tags=[f.tag];if(f.cat==="Bakery"&&f.tag==="Pure Veg")tags.push("Eggless");
+    if(!db)return fail();
+    try{await db.collection("bags").add({created:Date.now(),store:name,fallback:f.fallback,title:`${f.cat} Surprise Bag`,cat:f.cat,tags,orig,price,qty,win:f.win,dist:(stores.find(s=>s.store===name)||{}).dist||+(Math.random()*2.5+.3).toFixed(1),rating:(stores.find(s=>s.store===name)||{}).rating||4.5,emoji:{Bakery:"🥐",Meals:"🍛",Mithai:"🍬",Snacks:"🥟"}[f.cat]||"🛍️"});
+    setF({...blank,store:name});
+    toast("New Surprise Bag Listed!");}catch(err){fail()}
+  };
+  const verify=async e=>{
+    e.preventDefault();
+    const o=orders.find(x=>x.pin===pin.trim()&&x.status==="Reserved");
+    if(!o){toast("Invalid or already-used PIN","warn");return}
+    if(!db)return fail();
+    try{await db.doc("orders/"+o.id).update({status:"Picked Up"})}catch(err){return fail()}
+    setPin("");toast(`Order picked up: ${o.title}`);
+  };
+  const inp="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white";
+  const lbl="block text-xs font-semibold text-slate-600 mb-1";
+
+  return (<div className="up space-y-5">
+    <div className="grid grid-cols-3 gap-3">
+      {[["Bags Saved Today",bagsSaved,"bag",G],["Revenue Recovered",`₹${rev}`,"zap",A],["CO₂ Prevented",`${co2} kg`,"leaf","#047857"]].map(([l,v,ic,c])=>(
+        <div key={l} className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-4"><div style={{color:c}}><I n={ic} s={20}/></div><div className="text-xl sm:text-2xl font-extrabold mt-1">{v}</div><div className="text-[11px] sm:text-xs text-slate-500">{l}</div></div>))}
+    </div>
+
+    <form onSubmit={submit} className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+      <div className="flex items-center gap-2 mb-3"><span className="text-amber-600"><I n="zap" s={18}/></span><h2 className="font-bold">Drop Surplus Bags <span className="text-xs font-medium text-slate-500">— 10-second listing</span></h2></div>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div><label className={lbl}>Store Name</label><select className={inp} value={f.store} onChange={e=>{const s=stores.find(x=>x.store===e.target.value);setF({...f,store:e.target.value,...(s?{cat:s.cat,tag:s.tags[0],win:s.win}:{})})}}>{stores.map(s=><option key={s.store} value={s.store}>{s.store}</option>)}<option value="__new__">+ New store</option></select>{f.store==="__new__"&&<input className={inp+" mt-2"} value={f.newStore||""} onChange={set("newStore")} placeholder="Type new store name"/>}</div>
+        <div><label className={lbl}>Bag Category</label><select className={inp} value={f.cat} onChange={set("cat")}>{["Bakery","Meals","Mithai","Snacks"].map(x=><option key={x}>{x}</option>)}</select></div>
+        <div><label className={lbl}>Dietary Tag</label><select className={inp} value={f.tag} onChange={set("tag")}>{["Pure Veg","Jain","Eggless","Non-Veg"].map(x=><option key={x}>{x}</option>)}</select></div>
+        <div><label className={lbl}>Pickup Window</label><select className={inp} value={f.win} onChange={set("win")}>{["8:30 PM – 9:30 PM","9:30 PM – 10:30 PM","10:00 PM – 11:00 PM"].map(x=><option key={x}>{x}</option>)}</select></div>
+        <div className="sm:col-span-2"><label className={lbl}>Unsold Bag Fallback</label><select className={inp} value={f.fallback} onChange={set("fallback")}>{RULES.map(x=><option key={x}>{x}</option>)}</select><p className="text-[11px] text-slate-500 mt-1">Applied automatically 30 min before closing. Donating to an NGO is optional.</p></div>
+        <div className="grid grid-cols-3 gap-3 sm:col-span-2">
+          <div><label className={lbl}>Original ₹</label><input type="number" min="1" className={inp} value={f.orig} onChange={set("orig")} placeholder="350"/></div>
+          <div><label className={lbl}>Discounted ₹</label><input type="number" min="1" className={inp} value={f.price} onChange={set("price")} placeholder="99"/></div>
+          <div><label className={lbl}>Quantity</label><input type="number" min="1" className={inp} value={f.qty} onChange={set("qty")}/></div>
+        </div>
+      </div>
+      <button className="mt-4 w-full sm:w-auto px-6 py-2.5 rounded-xl text-white font-bold hover:brightness-110" style={{background:G}}>Publish Surprise Bag</button>
+    </form>
+
+    <div className="grid md:grid-cols-2 gap-5">
+      <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+        <h2 className="font-bold mb-3">Active Listings</h2>
+        <div className="space-y-2 max-h-72 overflow-y-auto">{bags.map(b=>(<div key={b.id} className="flex items-center justify-between text-sm border border-slate-100 rounded-lg px-3 py-2"><div className="min-w-0"><div className="font-semibold truncate">{b.store}</div><div className="text-xs text-slate-500 truncate">{b.title} • ₹{b.price}</div><span className={`inline-block mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${RULE_STYLE[rule(b)]}`}>{rule(b)}</span></div><span className={`text-xs font-bold px-2 py-1 rounded-full ${b.qty?"bg-amber-50 text-amber-700":"bg-slate-100 text-slate-500"}`}>{b.qty} left</span></div>))}</div>
+      </section>
+      <section className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5">
+        <h2 className="font-bold mb-3">Verify Pickup PIN</h2>
+        <form onSubmit={verify} className="flex gap-2">
+          <input inputMode="numeric" maxLength={4} value={pin} onChange={e=>setPin(e.target.value.replace(/\D/g,""))} placeholder="4-digit PIN" aria-label="Pickup PIN" className={inp+" font-mono tracking-widest text-center"}/>
+          <button disabled={pin.length!==4} className="px-4 rounded-lg text-white font-bold disabled:bg-slate-300" style={{background:G}}>Verify</button>
+        </form>
+        <p className="text-xs text-slate-500 mt-2">Demo: try PIN <b className="font-mono">4829</b> for the sample order.</p>
+        <div className="mt-3 space-y-2">{orders.map(o=>(<div key={o.id} className="flex justify-between items-center text-sm border border-slate-100 rounded-lg px-3 py-2"><span className="truncate">{o.title}</span><span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${o.status==="Reserved"?"bg-amber-50 text-amber-700":"bg-emerald-50 text-emerald-700"}`}>{o.status}</span></div>))}</div>
+      </section>
+    </div>
+  </div>);
+}
+
+function NGO({batches,fallback,claim,bags}){
+  const open=bags.filter(b=>b.qty>0).reduce((s,b)=>s+b.qty,0);
+  return (<div className="up space-y-5">
+    <div className="rounded-2xl p-5 text-white" style={{background:"linear-gradient(135deg,#B45309,#D97706)"}}>
+      <h1 className="text-xl font-extrabold flex items-center gap-2"><I n="heart" s={22} f/>NGO Rescue Portal</h1>
+      <p className="text-sm text-amber-50 mt-1">Only bags whose vendor chose Auto-Donate become free ₹0 rescue batches 30 minutes before closing.</p>
+      <button onClick={fallback} className="mt-4 w-full sm:w-auto bg-white text-amber-800 font-bold px-5 py-3 rounded-xl hover:bg-amber-50 flex items-center justify-center gap-2"><I n="zap" s={18}/>Simulate 30-Mins-Before-Closing Auto-Transfer</button>
+      <p className="text-xs text-amber-100 mt-2">{open} unreserved bag{open===1?"":"s"} currently on the marketplace</p>
+    </div>
+    <h2 className="font-bold">Free Rescue Batches</h2>
+    {batches.length===0&&<div className="bg-white rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500 text-sm">No batches yet. Run the auto-transfer simulation to see unsold bags appear here.</div>}
+    <div className="grid gap-4 sm:grid-cols-2">{batches.map(b=>(
+      <article key={b.id} className="up bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="flex justify-between items-start gap-2"><div><div className="flex items-center gap-2 flex-wrap font-bold">{b.store}<FSSAI/></div><div className="text-sm text-slate-600">{b.title} × {b.bags}</div></div><span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full">₹0 FREE</span></div>
+        <div className="mt-3 text-sm space-y-1 text-slate-600">
+          <div className="font-semibold text-slate-900">~{b.kg} kg • Feeds ~{b.feeds} people</div>
+          <div className="flex items-center gap-1"><I n="pin" s={13}/>{b.dist} km from your centre</div>
+        </div>
+        {b.status==="Available"
+          ?<button onClick={()=>claim(b.id)} className="mt-3 w-full py-2.5 rounded-xl text-white font-bold hover:brightness-110" style={{background:G}}>Claim Batch for Volunteer Pickup</button>
+          :<div className="mt-3 flex items-center gap-2 text-sm font-semibold text-amber-700 bg-amber-50 rounded-xl px-3 py-2.5"><I n="truck" s={16}/>Volunteer En Route <span className="font-normal text-xs text-amber-600 ml-auto">{b.ngo}</span></div>}
+      </article>))}
+    </div>
+  </div>);
+}
+
+function DbTable({name,rows,cols}){
+  return (<section className="bg-white rounded-2xl border border-slate-200 p-4">
+    <div className="flex justify-between items-center mb-2"><h3 className="font-mono font-bold text-sm">{name}</h3><span className="text-xs bg-slate-100 rounded-full px-2 py-0.5">{rows.length} documents</span></div>
+    <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="text-left text-slate-500">{cols.map(c=><th key={c} className="py-1 pr-4 font-semibold">{c}</th>)}</tr></thead>
+    <tbody>{rows.map(r=>(<tr key={r.id} className="border-t border-slate-100">{cols.map(c=><td key={c} className="py-1.5 pr-4 whitespace-nowrap font-mono">{String(r[c]??"–")}</td>)}</tr>))}</tbody></table></div>
+  </section>);
+}
+function DbView({bags,orders,batches,state}){
+  return (<div className="up space-y-4">
+    <div className="rounded-2xl p-4 bg-slate-900 text-white"><h1 className="font-bold flex items-center gap-2"><I n="shield" s={18}/>Live Server Database</h1>
+    <p className="text-sm text-slate-300 mt-1">Every listing, reservation and NGO claim is stored on the server and syncs in realtime to every device that has this page open. Connection: <b>{state}</b></p></div>
+    <DbTable name="bags" rows={bags} cols={["id","store","title","price","qty","win"]}/>
+    <DbTable name="orders" rows={orders} cols={["id","store","price","pin","status","uid"]}/>
+    <DbTable name="batches" rows={batches} cols={["id","store","bags","kg","feeds","status","ngo"]}/>
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
